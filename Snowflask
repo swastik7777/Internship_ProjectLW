@@ -1,0 +1,42 @@
+--Specify the role
+use role ACCOUNTADMIN;
+
+drop database if exists s3_to_snowflake;
+
+--Database Creation 
+create database if not exists s3_to_snowflake;
+
+--Specify the active/current database for the session.
+use s3_to_snowflake;
+
+
+--Storage Integration Creation
+create or replace storage integration s3_int
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = S3
+ENABLED = TRUE 
+STORAGE_AWS_ROLE_ARN = '{}'
+STORAGE_ALLOWED_LOCATIONS = ('s3://{}')
+COMMENT = 'Testing Snowflake getting refresh or not';
+
+--Describe the Integration Object
+DESC INTEGRATION  s3_int;
+
+
+--External Stage Creation
+
+create stage mystage
+  url = 's3://{}'
+  storage_integration = s3_int;
+
+list @mystage;
+
+--File Format Creation
+create or replace file format my_json_format
+type = json;
+
+--Table Creation
+create or replace external table s3_to_snowflake.PUBLIC.Person with location = @mystage file_format ='my_json_format';
+    
+--Query the table
+select parse_json(VALUE):Age as Age  , trim(parse_json(VALUE):Name,'"') as Name from  s3_to_snowflake.PUBLIC.Person;
